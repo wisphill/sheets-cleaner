@@ -17,6 +17,10 @@ from handler_05_remove_contacts_columns import (
     remove_columns_from_contacts_worksheet
 )
 
+from handler_06_remove_client_contacts_columns import (
+    remove_columns_from_clientcontacts_worksheet
+)
+
 def load_workbook(input_file: str) -> openpyxl.Workbook:
     """Tải file Excel vào bộ nhớ RAM.
 
@@ -44,21 +48,20 @@ def load_excel_sheet_duckdb(file_path: str, sheet_name: str):
 
 
 # ==========================================
-# QUY TRÌNH THỰC THI
+# Main process
 # ==========================================
 if __name__ == "__main__":
     input_file = "dovida_staging_2026-09-23_010126_Import_Template_v0.0.53.xlsx"
     output_file = "new_data.xlsx"
-    sheet_to_remove = "TempSheet"
-
-    # Bước 1: Đọc file gốc vào RAM (chưa đụng gì file gốc)
+    
     wb = load_workbook(input_file=input_file)
     wb = delete_sheets(wb)
     wb = clear_branch_name_column(workbook=wb)
     wb = update_tenant_column(workbook=wb)
     wb = remove_columns_from_contacts_worksheet(workbook=wb)
+    wb = remove_columns_from_clientcontacts_worksheet(wb)
 
-    # Bước 3: Xuất dữ liệu từ RAM ra FILE MỚI
+    # Export data from RAM to the new file
     export_to_new_file(workbook=wb, output_file=output_file)
 
     # Bước 4: Dùng DuckDB đọc dữ liệu từ FILE MỚI vừa tạo
