@@ -25,6 +25,9 @@ from handler_07_remove_clients_columns import (
     remove_columns_from_clients_worksheet
 )
 
+from handler_08_remove_employees_columns import (
+    remove_columns_from_employees_worksheet
+)
 
 def load_workbook(input_file: str) -> openpyxl.Workbook:
     """Tải file Excel vào bộ nhớ RAM.
@@ -66,16 +69,7 @@ if __name__ == "__main__":
     wb = remove_columns_from_contacts_worksheet(workbook=wb)
     wb = remove_columns_from_clientcontacts_worksheet(wb)
     wb = remove_columns_from_clients_worksheet(wb)
+    wb = remove_columns_from_employees_worksheet(wb)
 
     # Export data from RAM to the new file
     export_to_new_file(workbook=wb, output_file=output_file)
-
-    # Bước 4: Dùng DuckDB đọc dữ liệu từ FILE MỚI vừa tạo
-    # try:
-    #     df = load_excel_sheet_duckdb(
-    #         file_path=output_file, sheet_name="DataSheet"
-    #     )
-    #     print("\n--- Dữ liệu từ file MỚI đọc bằng DuckDB ---")
-    #     print(df.head())
-    # except Exception as e:
-    #     print(f"Error when reading file with DuckDB: {e}")
