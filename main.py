@@ -1,7 +1,7 @@
 import duckdb
 import openpyxl
 
-from handler_delete_sheets import (
+from handler_01_delete_sheets import (
     DEFAULT_SHEETS_TO_DELETE,
     delete_sheets,
 )
