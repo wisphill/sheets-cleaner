@@ -36,7 +36,7 @@ def load_excel_sheet_duckdb(file_path: str, sheet_name: str):
 # QUY TRÌNH THỰC THI
 # ==========================================
 if __name__ == "__main__":
-    input_file = "data.xlsx"
+    input_file = "dovida_staging_2026-09-23_010126_Import_Template_v0.0.53.xlsx"
     output_file = "new_data.xlsx"
     sheet_to_remove = "TempSheet"
 
@@ -48,11 +48,11 @@ if __name__ == "__main__":
     export_to_new_file(workbook=wb, output_file=output_file)
 
     # Bước 4: Dùng DuckDB đọc dữ liệu từ FILE MỚI vừa tạo
-    try:
-        df = load_excel_sheet_duckdb(
-            file_path=output_file, sheet_name="DataSheet"
-        )
-        print("\n--- Dữ liệu từ file MỚI đọc bằng DuckDB ---")
-        print(df.head())
-    except Exception as e:
-        print(f"Error when reading file with DuckDB: {e}")
+    # try:
+    #     df = load_excel_sheet_duckdb(
+    #         file_path=output_file, sheet_name="DataSheet"
+    #     )
+    #     print("\n--- Dữ liệu từ file MỚI đọc bằng DuckDB ---")
+    #     print(df.head())
+    # except Exception as e:
+    #     print(f"Error when reading file with DuckDB: {e}")

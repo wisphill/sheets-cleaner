@@ -3,10 +3,9 @@ import openpyxl
 
 # Danh sách các sheet mặc định cần xóa (ví dụ các sheet nháp, tạm)
 DEFAULT_SHEETS_TO_DELETE: List[str] = [
-    "TempSheet",
-    "Draft",
+    "Skills"
     "Sheet1",
-    "Data_Temp",
+    "Sheet2",
 ]
 
 def delete_sheets(
