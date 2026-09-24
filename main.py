@@ -13,6 +13,10 @@ from handler_03_update_tenants import (
     update_tenant_column
 )
 
+from handler_05_remove_contacts_columns import (
+    remove_columns_from_contacts_worksheet
+)
+
 def load_workbook(input_file: str) -> openpyxl.Workbook:
     """Tải file Excel vào bộ nhớ RAM.
 
@@ -52,6 +56,7 @@ if __name__ == "__main__":
     wb = delete_sheets(wb)
     wb = clear_branch_name_column(workbook=wb)
     wb = update_tenant_column(workbook=wb)
+    wb = remove_columns_from_contacts_worksheet(workbook=wb)
 
     # Bước 3: Xuất dữ liệu từ RAM ra FILE MỚI
     export_to_new_file(workbook=wb, output_file=output_file)
