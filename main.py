@@ -2,12 +2,15 @@ import duckdb
 import openpyxl
 
 from handler_01_delete_sheets import (
-    DEFAULT_SHEETS_TO_DELETE,
     delete_sheets,
 )
 
 from handler_02_clean_workbooks import (
     clear_branch_name_column,
+)
+
+from handler_03_update_tenants import (
+    update_tenant_column
 )
 
 def load_workbook(input_file: str) -> openpyxl.Workbook:
@@ -48,6 +51,7 @@ if __name__ == "__main__":
     wb = load_workbook(input_file=input_file)
     wb = delete_sheets(wb)
     wb = clear_branch_name_column(workbook=wb)
+    wb = update_tenant_column(workbook=wb)
 
     # Bước 3: Xuất dữ liệu từ RAM ra FILE MỚI
     export_to_new_file(workbook=wb, output_file=output_file)
