@@ -21,6 +21,11 @@ from handler_06_remove_client_contacts_columns import (
     remove_columns_from_clientcontacts_worksheet
 )
 
+from handler_07_remove_clients_columns import (
+    remove_columns_from_clients_worksheet
+)
+
+
 def load_workbook(input_file: str) -> openpyxl.Workbook:
     """Tải file Excel vào bộ nhớ RAM.
 
@@ -60,6 +65,7 @@ if __name__ == "__main__":
     wb = update_tenant_column(workbook=wb)
     wb = remove_columns_from_contacts_worksheet(workbook=wb)
     wb = remove_columns_from_clientcontacts_worksheet(wb)
+    wb = remove_columns_from_clients_worksheet(wb)
 
     # Export data from RAM to the new file
     export_to_new_file(workbook=wb, output_file=output_file)
