@@ -33,6 +33,10 @@ from handler_11_remove_employee_contacts_columns import (
     remove_columns_from_employee_contacts_worksheet
 )
 
+from handler_12_clear_acquired_date import (
+    clear_acquired_date_for_police_check
+)
+
 def load_workbook(input_file: str) -> openpyxl.Workbook:
     """Tải file Excel vào bộ nhớ RAM.
 
@@ -75,6 +79,7 @@ if __name__ == "__main__":
     wb = remove_columns_from_clients_worksheet(wb)
     wb = remove_columns_from_employees_worksheet(wb)
     wb = remove_columns_from_employee_contacts_worksheet(wb)
+    wb = clear_acquired_date_for_police_check(wb)
 
     # Export data from RAM to the new file
     export_to_new_file(workbook=wb, output_file=output_file)
