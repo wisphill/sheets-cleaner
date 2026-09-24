@@ -29,6 +29,10 @@ from handler_08_remove_employees_columns import (
     remove_columns_from_employees_worksheet
 )
 
+from handler_09_remove_employees_with_supplier_code import (
+    remove_employees_with_supplier_code
+)
+
 from handler_11_remove_employee_contacts_columns import (
     remove_columns_from_employee_contacts_worksheet
 )
@@ -90,6 +94,7 @@ if __name__ == "__main__":
     wb = clear_acquired_date_for_police_check(wb)
     wb = clean_sah_funding_episodes(wb)
     wb = clean_sah_funding_episode_contracts(wb)
+    wb = remove_employees_with_supplier_code(wb)
 
     # Export data from RAM to the new file
     export_to_new_file(workbook=wb, output_file=output_file)
