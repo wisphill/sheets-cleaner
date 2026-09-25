@@ -13,6 +13,10 @@ from handler_03_update_tenants import (
     update_tenant_column
 )
 
+from handler_04_add_employee_roles import (
+    create_employee_roles_with_specific_users
+)
+
 from handler_05_remove_contacts_columns import (
     remove_columns_from_contacts_worksheet
 )
@@ -88,9 +92,10 @@ if __name__ == "__main__":
     
     wb = load_workbook(input_file=input_file)
     wb = delete_sheets(wb)
-    wb = clear_branch_name_column(workbook=wb)
-    wb = update_tenant_column(workbook=wb)
-    wb = remove_columns_from_contacts_worksheet(workbook=wb)
+    wb = clear_branch_name_column(wb)
+    wb = create_employee_roles_with_specific_users(wb)
+    wb = update_tenant_column(wb)
+    wb = remove_columns_from_contacts_worksheet(wb)
     wb = remove_columns_from_clientcontacts_worksheet(wb)
     wb = remove_columns_from_clients_worksheet(wb)
     wb = remove_columns_from_employees_worksheet(wb)
