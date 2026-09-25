@@ -1,8 +1,6 @@
 from typing import List, Optional
 import openpyxl
 
-
-
 def remove_columns_from_worksheet(
     workbook: openpyxl.Workbook,
     sheet_name: str,

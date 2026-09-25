@@ -2,11 +2,12 @@ from datetime import date, datetime
 from typing import Union
 import openpyxl
 
+from common.const import GO_LIVE_DATE
+
 # Khai báo chính xác tiêu đề cột (So sánh nguyên văn chuỗi)
 EXACT_EPISODE_START_DATE_HEADER = "EpisodeStartDate*"
 EXACT_CONTRACT_START_DATE_HEADER = "ContractStartDate*"
 EXACT_BILLING_CONTACT_HEADER = "Billing Contact*"
-GO_LIVE_DATE = "2026-11-01"
 
 
 def clean_sah_funding_episode_contracts(
