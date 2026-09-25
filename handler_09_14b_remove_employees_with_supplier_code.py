@@ -3,6 +3,7 @@ import openpyxl
 # Tên chính xác của các tiêu đề cột (so sánh nguyên văn)
 EXACT_SUPPLIER_CODE_HEADER = "SupplierCode"
 EXACT_EMPLOYEE_ID_HEADER = "EmployeeId*"
+EXACT_EMPLOYEE_ID_HEADER_2 = "EmployeeId"
 EXACT_MAIN_ID_HEADER = "Id*"
 
 
@@ -88,7 +89,7 @@ def remove_employees_with_supplier_code(
             cell_val = sheet.cell(row=1, column=col).value
             if (
                 cell_val is not None
-                and str(cell_val) == EXACT_EMPLOYEE_ID_HEADER
+                and (str(cell_val) == EXACT_EMPLOYEE_ID_HEADER or str(cell_val) == EXACT_EMPLOYEE_ID_HEADER_2)
             ):
                 emp_id_col_idx = col
                 break
