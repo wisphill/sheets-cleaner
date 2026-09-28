@@ -45,6 +45,10 @@ from handler_12_clear_acquired_date import (
     clear_acquired_date_for_police_check
 )
 
+from handler_13_client_on_hold import (
+    clean_client_status_sheet
+)
+
 from handler_14_cleanup_services import (
     clean_services_sheet
 )
@@ -101,6 +105,7 @@ if __name__ == "__main__":
     wb = remove_columns_from_employees_worksheet(wb)
     wb = remove_columns_from_employee_contacts_worksheet(wb)
     wb = clear_acquired_date_for_police_check(wb)
+    wb = clean_client_status_sheet(wb)
     wb = clean_services_sheet(wb)
     wb = clean_sah_funding_episodes(wb)
     wb = clean_sah_funding_episode_contracts(wb)
