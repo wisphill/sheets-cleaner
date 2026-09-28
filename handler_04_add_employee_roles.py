@@ -21,7 +21,20 @@ GUIDELINE_TENANT = (
 )
 
 # Danh sách Admin mặc định
-DEFAULT_TARGET_USERS = []
+DEFAULT_TARGET_USERS = [
+    {
+        "employee_id": "RK_AC000036183", # Matthew matt.oliver@hiscsydnorth.com.au
+        "role": "System Administrator",
+        "branch": None,
+        "tenant": "raykay",
+    },
+    {
+        "employee_id": "RK_AC000054409", # Jo Heyney jo.hegney@dovida-snh.com.au
+        "role": "System Administrator",
+        "branch": None,
+        "tenant": "raykay",
+    },
+]
 
 
 def create_employee_roles_with_specific_users(
