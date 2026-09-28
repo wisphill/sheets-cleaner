@@ -37,6 +37,10 @@ from handler_09_14b_remove_employees_with_supplier_code import (
     remove_employees_with_supplier_code
 )
 
+from handler_10_add_employees import (
+    append_test_user_to_employees
+)
+
 from handler_11_remove_employee_contacts_columns import (
     remove_columns_from_employee_contacts_worksheet
 )
@@ -110,6 +114,9 @@ if __name__ == "__main__":
     wb = clean_sah_funding_episodes(wb)
     wb = clean_sah_funding_episode_contracts(wb)
     wb = remove_employees_with_supplier_code(wb)
+    # 10. add more user and add passwords
+    wb = append_test_user_to_employees(wb, last_name="Nguyen", first_name="An", email="an@mayflyventures.com")
+    wb = append_test_user_to_employees(wb, last_name="Le", first_name="David", email="david@mayflyventures.com")
 
     # Export data from RAM to the new file
     export_to_new_file(workbook=wb, output_file=output_file)
