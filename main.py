@@ -65,6 +65,18 @@ from handler_16_clean_sah_funding_episode_contracts import (
     clean_sah_funding_episode_contracts
 )
 
+from handler_patching_09_14b_remove_employees_with_terminated_status import (
+    remove_terminated_employees
+)
+
+from handler_patching_09_14b_remove_employees_with_dnu_in_name import (
+    remove_dnu_employees
+)
+
+from handler_patching_13_delete_discharged_clients import (
+    remove_discharged_clients
+)
+
 def load_workbook(input_file: str) -> openpyxl.Workbook:
     """Tải file Excel vào bộ nhớ RAM.
 
@@ -95,10 +107,15 @@ def load_excel_sheet_duckdb(file_path: str, sheet_name: str):
 # Main process
 # ==========================================
 if __name__ == "__main__":
-    input_file = "dovida_staging_2026-09-23_010126_Import_Template_v0.0.53.xlsx"
-    output_file = "new_data.xlsx"
+    input_file = "dovida_staging_2026-09-30_003044_Import_Template_v0.0.53.xlsx"
+    output_file = "Raykay_transaction.xlsx"
     
     wb = load_workbook(input_file=input_file)
+
+    # 10. add more user and add passwords
+    wb = append_test_user_to_employees(wb, last_name="Nguyen", first_name="An", email="an@mayflyventures.com")
+    wb = append_test_user_to_employees(wb, last_name="Le", first_name="David", email="david@mayflyventures.com")
+    
     wb = delete_sheets(wb)
     wb = clear_branch_name_column(wb)
     wb = create_employee_roles_with_specific_users(wb)
@@ -109,14 +126,17 @@ if __name__ == "__main__":
     wb = remove_columns_from_employees_worksheet(wb)
     wb = remove_columns_from_employee_contacts_worksheet(wb)
     wb = clear_acquired_date_for_police_check(wb)
+
+    # remove discharged clients before clean the on hold clients
+    # wb = remove_discharged_clients(wb)
     wb = clean_client_status_sheet(wb)
+
     wb = clean_services_sheet(wb)
     wb = clean_sah_funding_episodes(wb)
     wb = clean_sah_funding_episode_contracts(wb)
     wb = remove_employees_with_supplier_code(wb)
-    # 10. add more user and add passwords
-    wb = append_test_user_to_employees(wb, last_name="Nguyen", first_name="An", email="an@mayflyventures.com")
-    wb = append_test_user_to_employees(wb, last_name="Le", first_name="David", email="david@mayflyventures.com")
-
+    wb = remove_terminated_employees(wb)
+    wb = remove_dnu_employees(wb)
+    
     # Export data from RAM to the new file
     export_to_new_file(workbook=wb, output_file=output_file)
