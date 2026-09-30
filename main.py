@@ -77,6 +77,10 @@ from handler_patching_13_delete_discharged_clients import (
     remove_discharged_clients
 )
 
+from patching_contact_dnu import (
+    remove_dnu_contacts_and_client_contacts
+)
+
 def load_workbook(input_file: str) -> openpyxl.Workbook:
     """Tải file Excel vào bộ nhớ RAM.
 
@@ -137,6 +141,8 @@ if __name__ == "__main__":
     wb = remove_employees_with_supplier_code(wb)
     wb = remove_terminated_employees(wb)
     wb = remove_dnu_employees(wb)
+
+    wb = remove_dnu_contacts_and_client_contacts(wb)
     
     # Export data from RAM to the new file
     export_to_new_file(workbook=wb, output_file=output_file)
