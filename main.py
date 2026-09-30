@@ -127,9 +127,9 @@ if __name__ == "__main__":
     wb = remove_columns_from_employee_contacts_worksheet(wb)
     wb = clear_acquired_date_for_police_check(wb)
 
-    # remove discharged clients before clean the on hold clients
+    #  clean the client status worksheet before removing discharged clients
+    # wb = clean_client_status_sheet(wb)
     # wb = remove_discharged_clients(wb)
-    wb = clean_client_status_sheet(wb)
 
     wb = clean_services_sheet(wb)
     wb = clean_sah_funding_episodes(wb)

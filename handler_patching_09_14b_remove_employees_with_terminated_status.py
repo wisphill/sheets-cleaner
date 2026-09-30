@@ -10,12 +10,30 @@ EXACT_EMPLOYEE_ID_HEADER_2 = "EmployeeId"
 TARGET_STATUS_VALUE = "Terminated"
 
 
+def _rebuild_sheet_content(worksheet: openpyxl.worksheet.worksheet.Worksheet, rows_data: list):
+    """Ghi đè lại dữ liệu vào các ô hiện có để BẢO TOÀN FORMAT,
+
+    sau đó xóa bỏ các dòng thừa ở phía dưới.
+    """
+    total_new_rows = len(rows_data)
+    current_max_row = worksheet.max_row
+
+    # 1. Ghi đè dữ liệu vào các row hiện có (giữ nguyên cell styles/formatting)
+    for row_idx, row_values in enumerate(rows_data, start=1):
+        for col_idx, val in enumerate(row_values, start=1):
+            worksheet.cell(row=row_idx, column=col_idx, value=val)
+
+    # 2. Nếu số dòng sau khi lọc ít hơn số dòng ban đầu, xóa các dòng dư ở cuối
+    if current_max_row > total_new_rows:
+        rows_to_delete = current_max_row - total_new_rows
+        worksheet.delete_rows(total_new_rows + 1, amount=rows_to_delete)
+
+
 def remove_terminated_employees(
     workbook: openpyxl.Workbook,
     employees_sheet_name: str = "Employees",
 ) -> openpyxl.Workbook:
     """1. Finds Employees in the 'Employees' sheet where 'Status*' is 'Terminated'
-
     and removes those records.
     2. Scans all other sheets for 'EmployeeId*' / 'EmployeeId' columns and
        removes related records for those terminated employees using a fast
@@ -149,10 +167,3 @@ def remove_terminated_employees(
                 )
 
     return workbook
-
-
-def _rebuild_sheet_content(worksheet: openpyxl.worksheet.worksheet.Worksheet, rows_data: list):
-    """Clears all cells in a worksheet and bulk re-writes preserved row data."""
-    worksheet.delete_rows(1, worksheet.max_row)  # Clears all contents fast
-    for row in rows_data:
-        worksheet.append(row)
