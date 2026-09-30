@@ -128,8 +128,8 @@ if __name__ == "__main__":
     wb = clear_acquired_date_for_police_check(wb)
 
     #  clean the client status worksheet before removing discharged clients
-    # wb = clean_client_status_sheet(wb)
-    # wb = remove_discharged_clients(wb)
+    wb = clean_client_status_sheet(wb)
+    wb = remove_discharged_clients(wb)
 
     wb = clean_services_sheet(wb)
     wb = clean_sah_funding_episodes(wb)

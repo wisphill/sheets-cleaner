@@ -1,3 +1,4 @@
+import copy
 import openpyxl
 
 # Exact header names matching requirements
@@ -10,6 +11,71 @@ EXACT_STATUS_HEADER = "Status*"
 TARGET_STATUS_VALUE = "Discharged"
 
 
+def normalize_id(val) -> str:
+    """Chuẩn hóa Client ID về dạng chuỗi sạch để so sánh chính xác."""
+    if val is None:
+        return ""
+    if isinstance(val, float) and val.is_integer():
+        return str(int(val))
+    return str(val).strip()
+
+
+def _copy_cell_formatting(src_cell, dst_cell):
+    """Copy toàn bộ giá trị và định dạng từ src_cell sang dst_cell."""
+    dst_cell.value = src_cell.value
+    if src_cell.has_style:
+        dst_cell.font = copy.copy(src_cell.font)
+        dst_cell.border = copy.copy(src_cell.border)
+        dst_cell.fill = copy.copy(src_cell.fill)
+        dst_cell.number_format = src_cell.number_format
+        dst_cell.protection = copy.copy(src_cell.protection)
+        dst_cell.alignment = copy.copy(src_cell.alignment)
+
+
+def _clear_cell(cell):
+    """Xóa dữ liệu và định dạng của ô."""
+    cell.value = None
+
+
+def _fast_filter_sheet(sheet, target_col_idx, ids_to_delete, start_row=3):
+    """Lọc và loại bỏ dòng bằng thuật toán In-place Overwrite (ghi đè nội bộ).
+
+    Nhanh gấp hàng chục lần so với việc gọi delete_rows() liên tục.
+    """
+    max_row = sheet.max_row
+    max_col = sheet.max_column
+
+    if max_row < start_row:
+        return 0
+
+    write_row = start_row
+    deleted_count = 0
+
+    for read_row in range(start_row, max_row + 1):
+        cell_val = sheet.cell(row=read_row, column=target_col_idx).value
+        norm_id = normalize_id(cell_val)
+
+        # Nếu dòng thuộc danh sách cần xóa
+        if norm_id in ids_to_delete:
+            deleted_count += 1
+            continue
+
+        # Nếu cần di chuyển dòng lên trên
+        if write_row != read_row:
+            for col in range(1, max_col + 1):
+                src_cell = sheet.cell(row=read_row, column=col)
+                dst_cell = sheet.cell(row=write_row, column=col)
+                _copy_cell_formatting(src_cell, dst_cell)
+
+        write_row += 1
+
+    # Nếu có dòng bị xóa, gọi delete_rows 1 LẦN DUY NHẤT ở cuối sheet
+    if deleted_count > 0:
+        sheet.delete_rows(write_row, deleted_count)
+
+    return deleted_count
+
+
 def remove_discharged_clients(
     workbook: openpyxl.Workbook,
     client_status_sheet_name: str = "ClientStatus",
@@ -19,7 +85,7 @@ def remove_discharged_clients(
 
     2. Xóa các dòng tương ứng trong worksheet 'Clients' (dựa theo Id*).
     3. Quét TẤT CẢ các worksheet và xóa các dòng chứa ClientId* bị loại bỏ.
-    4. Sử dụng phương pháp Filter & Rebuild Sheet để đạt hiệu năng tối ưu.
+    4. Tối ưu performance bằng In-place Overwrite + 1 lần delete_rows ở cuối.
     """
     # --- BƯỚC 1: Tìm danh sách ClientId* có Status* = 'Discharged' từ sheet ClientStatus ---
     if client_status_sheet_name not in workbook.sheetnames:
@@ -51,51 +117,37 @@ def remove_discharged_clients(
         return workbook
 
     discharged_client_ids = set()
-    status_rows_to_keep = []
 
-    # Giữ Hàng 1 (Header) và Hàng 2 (Guideline)
-    for r in range(1, min(3, status_sheet.max_row + 1)):
-        status_rows_to_keep.append(
-            [
-                status_sheet.cell(row=r, column=c).value
-                for c in range(1, status_sheet.max_column + 1)
-            ]
-        )
-
-    # Đọc dữ liệu từ Hàng 3 trở đi
-    deleted_status_count = 0
+    # Quét dữ liệu từ Hàng 3 trở đi để thu thập ID bị Discharged
     for row in range(3, status_sheet.max_row + 1):
         status_val = status_sheet.cell(row=row, column=status_col_idx).value
         client_id_val = status_sheet.cell(
             row=row, column=status_client_id_col_idx
         ).value
 
-        is_discharged = (
+        if (
             status_val is not None
             and str(status_val).strip() == TARGET_STATUS_VALUE
-        )
-
-        if is_discharged:
-            deleted_status_count += 1
-            if client_id_val is not None:
-                discharged_client_ids.add(str(client_id_val).strip())
-        else:
-            status_rows_to_keep.append(
-                [
-                    status_sheet.cell(row=row, column=c).value
-                    for c in range(1, status_sheet.max_column + 1)
-                ]
-            )
+        ):
+            norm_id = normalize_id(client_id_val)
+            if norm_id:
+                discharged_client_ids.add(norm_id)
 
     if not discharged_client_ids:
         print(
             f"ℹ️ Sheet '{client_status_sheet_name}': Không có Client nào có"
-            f" Status là '{TARGET_STATUS_VALUE.capitalize()}'."
+            f" Status là '{TARGET_STATUS_VALUE}'."
         )
         return workbook
 
-    # Cập nhật lại sheet ClientStatus
-    _rebuild_sheet_content(status_sheet, status_rows_to_keep)
+    # Xóa các dòng Discharged trong sheet ClientStatus (dùng hàm tối ưu)
+    deleted_status_count = _fast_filter_sheet(
+        status_sheet,
+        status_client_id_col_idx,
+        discharged_client_ids,
+        start_row=3,
+    )
+
     print(
         f"🗑️ Sheet '{client_status_sheet_name}': Đã xóa {deleted_status_count}"
         f" dòng Discharged. Danh sách ClientId* bị loại bỏ:"
@@ -115,46 +167,15 @@ def remove_discharged_clients(
                     break
 
         if main_id_col_idx:
-            clients_rows_to_keep = []
-            deleted_clients_count = 0
-
-            # Giữ Hàng 1 & 2
-            for r in range(1, min(3, clients_sheet.max_row + 1)):
-                clients_rows_to_keep.append(
-                    [
-                        clients_sheet.cell(row=r, column=c).value
-                        for c in range(1, clients_sheet.max_column + 1)
-                    ]
-                )
-
-            # Lọc các dòng Client
-            for row in range(3, clients_sheet.max_row + 1):
-                client_id_val = clients_sheet.cell(
-                    row=row, column=main_id_col_idx
-                ).value
-                id_str = (
-                    str(client_id_val).strip()
-                    if client_id_val is not None
-                    else ""
-                )
-
-                if id_str in discharged_client_ids:
-                    deleted_clients_count += 1
-                else:
-                    clients_rows_to_keep.append(
-                        [
-                            clients_sheet.cell(row=row, column=c).value
-                            for c in range(1, clients_sheet.max_column + 1)
-                        ]
-                    )
-
-            _rebuild_sheet_content(clients_sheet, clients_rows_to_keep)
+            deleted_clients_count = _fast_filter_sheet(
+                clients_sheet, main_id_col_idx, discharged_client_ids, start_row=3
+            )
             print(
                 f"🧹 Sheet '{clients_sheet_name}': Đã xóa"
                 f" {deleted_clients_count} dòng chứa ClientId* bị Discharged."
             )
 
-    # --- BƯỚC 3: Quét TẤT CẢ các worksheet khác để làm sạch theo ClientId* ---
+    # --- BƯỚC 3: Quét TẤT CẢ các worksheet còn lại để làm sạch theo ClientId* ---
     for sheet_name in workbook.sheetnames:
         if sheet_name in (client_status_sheet_name, clients_sheet_name):
             continue
@@ -171,51 +192,14 @@ def remove_discharged_clients(
                     client_id_col_idx = col
                     break
 
-        # Tiến hành lọc và xóa dòng nếu sheet có cột ClientId*
         if client_id_col_idx:
-            rows_to_keep = []
-            deleted_child_count = 0
-
-            # Giữ Hàng 1 & 2
-            for r in range(1, min(3, sheet.max_row + 1)):
-                rows_to_keep.append(
-                    [
-                        sheet.cell(row=r, column=c).value
-                        for c in range(1, sheet.max_column + 1)
-                    ]
-                )
-
-            # Lọc dữ liệu từ Hàng 3
-            for row in range(3, sheet.max_row + 1):
-                cell_val = sheet.cell(row=row, column=client_id_col_idx).value
-                cell_str = (
-                    str(cell_val).strip() if cell_val is not None else ""
-                )
-
-                if cell_str in discharged_client_ids:
-                    deleted_child_count += 1
-                else:
-                    rows_to_keep.append(
-                        [
-                            sheet.cell(row=row, column=c).value
-                            for c in range(1, sheet.max_column + 1)
-                        ]
-                    )
-
+            deleted_child_count = _fast_filter_sheet(
+                sheet, client_id_col_idx, discharged_client_ids, start_row=3
+            )
             if deleted_child_count > 0:
-                _rebuild_sheet_content(sheet, rows_to_keep)
                 print(
                     f"🧹 Related Sheet '{sheet_name}': Đã xóa"
                     f" {deleted_child_count} dòng chứa ClientId* bị Discharged."
                 )
 
     return workbook
-
-
-def _rebuild_sheet_content(
-    worksheet: openpyxl.worksheet.worksheet.Worksheet, rows_data: list
-):
-    """Xóa toàn bộ nội dung worksheet và ghi lại dữ liệu đã lọc."""
-    worksheet.delete_rows(1, worksheet.max_row)
-    for row in rows_data:
-        worksheet.append(row)

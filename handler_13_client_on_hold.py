@@ -1,10 +1,10 @@
+import copy
 import os
 import sys
 from typing import Dict, List, Optional, Set
 import openpyxl
-from openpyxl.styles import PatternFill
 
-# Khai báo các tiêu đề cột chuẩn (So sánh nguyên văn/chuẩn hóa)
+# Khai báo các tiêu đề cột chuẩn
 CLIENT_STATUS_SHEET_NAME = "ClientStatus"
 EXACT_CLIENT_ID_HEADER = "ClientId*"
 EXACT_STATUS_HEADER = "Status*"
@@ -16,6 +16,11 @@ EXACT_STATUS_REASON_HEADER = "StatusReason"
 EXACT_NOTE_HEADER = "Note"
 
 ON_HOLD_FILE_PATH = "./data/Clients on hold as of 28.9.2026.xlsx"
+
+
+def is_empty_or_none(val) -> bool:
+    """Helper kiểm tra giá trị ô có rỗng hay không."""
+    return val is None or str(val).strip() == ""
 
 
 # ==============================================================================
@@ -53,7 +58,7 @@ def get_on_hold_client_ids(
 
     for row in range(2, sheet.max_row + 1):
         val = sheet.cell(row=row, column=ac_number_col_idx).value
-        if val is not None and str(val).strip() != "":
+        if not is_empty_or_none(val):
             on_hold_ids.add(str(val).strip())
 
     print(
@@ -63,7 +68,7 @@ def get_on_hold_client_ids(
 
 
 # ==============================================================================
-# BƯỚC 2 & 3: Xử lý gom nhóm, Cập nhật On Hold (tô đỏ) & Lấy dòng Status cuối cùng
+# BƯỚC 2, 3 & 4: Xử lý gom nhóm, Cập nhật On Hold, Lấy dòng Status cuối cùng & Xóa dòng Active
 # ==============================================================================
 def clean_client_status_sheet(
     workbook: openpyxl.Workbook,
@@ -72,8 +77,11 @@ def clean_client_status_sheet(
     """Hàm điều phối dọn dẹp ClientStatus:
 
     1. Lọc nhóm On Hold từ file bên ngoài: Update Status="On Hold", EffectiveDate="TODAY",
-       xóa StatusReason, Note. Giữ 1 dòng duy nhất và tô màu đỏ.
+       xóa StatusReason, Note. Giữ 1 dòng duy nhất.
     2. Các Client còn lại: Lấy dòng cuối cùng (Status mới nhất) cho mỗi ClientId*.
+    3. Loại bỏ hoàn toàn các dòng có Status = "Active" sau khi gom nhóm.
+    4. Tối ưu hiệu năng bằng In-Place Shift.
+    5. Bảo toàn 100% Format của Row 1, Row 2 và giữ nguyên Format gốc của từng dòng.
     """
     if CLIENT_STATUS_SHEET_NAME not in workbook.sheetnames:
         print(
@@ -115,25 +123,19 @@ def clean_client_status_sheet(
     if total_rows < 3:
         return workbook
 
-    # --- ĐỌC VÀ PHÂN LOẠI DỮ LIỆU ---
-    # Cấu trúc lưu trữ: { client_id_str: [list_of_row_values] }
-    normal_clients_map: Dict[str, List[list]] = {}
-
-    # Cấu trúc cho nhóm On Hold: { matched_ac_number: [list_of_row_values] }
-    on_hold_clients_map: Dict[str, List[list]] = {}
+    # --- BƯỚC 1: ĐỌC VÀ LƯU VỊ TRÍ DÒNG (ROW INDEX) CẦN GIỮ LẠI ---
+    normal_clients_target_row: Dict[str, int] = {}
+    on_hold_clients_target_row: Dict[str, int] = {}
 
     for r in range(3, total_rows + 1):
-        row_vals = [
-            sheet.cell(row=r, column=c).value for c in range(1, total_cols + 1)
-        ]
         client_id_val = sheet.cell(row=r, column=client_id_col).value
 
-        if client_id_val is me_or_none(client_id_val):
+        if is_empty_or_none(client_id_val):
             continue
 
         client_id_str = str(client_id_val).strip()
 
-        # Kiểm tra xem row này có thuộc Client nằm trong danh sách On Hold hay không
+        # Kiểm tra ClientId có thuộc danh sách On Hold hay không
         matched_ac = None
         for ac_num in on_hold_ac_numbers:
             if ac_num in client_id_str:
@@ -141,94 +143,87 @@ def clean_client_status_sheet(
                 break
 
         if matched_ac:
-            if matched_ac not in on_hold_clients_map:
-                on_hold_clients_map[matched_ac] = []
-            on_hold_clients_map[matched_ac].append(row_vals)
+            if matched_ac not in on_hold_clients_target_row:
+                on_hold_clients_target_row[matched_ac] = r
         else:
-            if client_id_str not in normal_clients_map:
-                normal_clients_map[client_id_str] = []
-            normal_clients_map[client_id_str].append(row_vals)
+            normal_clients_target_row[client_id_str] = r
 
-    # --- BƯỚC 2: TẠO DỮ LIỆU DÒNG GIỮ LẠI ---
-    final_rows_data = []  # Danh sách các dòng dữ liệu sẽ ghi lại
-    red_row_indexes = (
-        set()
-    )  # Lưu chỉ số dòng (1-indexed) để tô màu đỏ sau khi ghi
+    # Tập hợp các dòng cần giữ lại ban đầu (trước khi lọc Active)
+    target_rows_set = set(on_hold_clients_target_row.values()) | set(normal_clients_target_row.values())
+    on_hold_rows_set = set(on_hold_clients_target_row.values())
 
-    # Dùng Fill đỏ đậm/nhẹ tùy nhu cầu (ở đây dùng Solid Red)
-    red_fill = PatternFill(
-        start_color="FFFF0000", end_color="FFFF0000", fill_type="solid"
-    )
-
-    current_output_row = 3  # Hàng dữ liệu bắt đầu từ Row 3
-
-    # 1. Xử lý nhóm ON HOLD
+    # --- BƯỚC 2: TỐI ƯU VỚI THUẬT TOÁN IN-PLACE SHIFT VÀ LỌC BỎ DÒNG ACTIVE ---
+    write_row = 3
     matched_on_hold_count = 0
-    for ac_num, rows_list in on_hold_clients_map.items():
-        matched_on_hold_count += 1
-        # Lấy dòng đầu tiên đại diện cho client này
-        rep_row = list(rows_list[0])
+    active_deleted_count = 0
 
-        # Cập nhật thông tin On Hold
-        rep_row[status_col - 1] = "On Hold"
-        if effective_date_col:
-            rep_row[effective_date_col - 1] = "TODAY"
+    for read_row in range(3, total_rows + 1):
+        if read_row not in target_rows_set:
+            continue
 
-        # Xóa dữ liệu StatusReason và Note
-        if status_reason_col:
-            rep_row[status_reason_col - 1] = None
-        if note_col:
-            rep_row[note_col - 1] = None
+        is_on_hold = read_row in on_hold_rows_set
 
-        final_rows_data.append(rep_row)
-        red_row_indexes.add(current_output_row)
-        current_output_row += 1
+        # Đọc giá trị Status hiện tại của dòng được chọn
+        current_status_val = sheet.cell(row=read_row, column=status_col).value
+        status_str = str(current_status_val).strip() if not is_empty_or_none(current_status_val) else ""
 
-    unmatched_on_hold = on_hold_ac_numbers - set(on_hold_clients_map.keys())
+        # Kiểm tra nếu KHÔNG PHẢI On Hold và có Status là "Active" thì BỎ QUA dòng này
+        if not is_on_hold and status_str.lower() == "active":
+            active_deleted_count += 1
+            continue
+
+        if is_on_hold:
+            matched_on_hold_count += 1
+
+        # Nếu vị trí ghi (write_row) khác vị trí đọc (read_row), chuyển dữ liệu & format gốc
+        if write_row != read_row:
+            for c in range(1, total_cols + 1):
+                src_cell = sheet.cell(row=read_row, column=c)
+                dst_cell = sheet.cell(row=write_row, column=c)
+
+                dst_cell.value = src_cell.value
+                if src_cell.has_style:
+                    dst_cell.number_format = src_cell.number_format
+                    dst_cell.font = copy.copy(src_cell.font)
+                    dst_cell.border = copy.copy(src_cell.border)
+                    dst_cell.fill = copy.copy(src_cell.fill)
+                    dst_cell.alignment = copy.copy(src_cell.alignment)
+
+        # Cập nhật dữ liệu cho dòng On Hold (giữ nguyên format nền gốc)
+        if is_on_hold:
+            sheet.cell(row=write_row, column=status_col).value = "On Hold"
+            if effective_date_col:
+                sheet.cell(row=write_row, column=effective_date_col).value = "TODAY"
+            if status_reason_col:
+                sheet.cell(row=write_row, column=status_reason_col).value = None
+            if note_col:
+                sheet.cell(row=write_row, column=note_col).value = None
+
+        write_row += 1
+
+    # --- BƯỚC 3: XÓA DÒNG DƯ Ở CUỐI SHEET TRONG 1 LẦN GỌI ---
+    new_max_row = write_row - 1
+    if total_rows > new_max_row:
+        rows_to_delete = total_rows - new_max_row
+        sheet.delete_rows(new_max_row + 1, amount=rows_to_delete)
+
+    # Cảnh báo các AC Number không khớp
+    unmatched_on_hold = on_hold_ac_numbers - set(on_hold_clients_target_row.keys())
     if unmatched_on_hold:
         print(
             f"⚠️ [LOG] {len(unmatched_on_hold)} AC Number On Hold không tìm thấy"
             f" trong sheet: {sorted(list(unmatched_on_hold))}"
         )
 
-    # 2. Xử lý nhóm CLIENT THƯỜNG (Lấy dòng cuối cùng / status mới nhất)
-    for client_id, rows_list in normal_clients_map.items():
-        latest_row = rows_list[-1]  # Lấy row có chỉ số lớn nhất (cuối cùng)
-        final_rows_data.append(latest_row)
-        current_output_row += 1
+    deleted_count = (total_rows - 2) - (new_max_row - 2)
+    normal_retained_count = (new_max_row - 2) - matched_on_hold_count
 
-    # --- BƯỚC 3: XÓA VÀ GHI ĐÈ BẢNG (REWRITE) ---
-    headers = [
-        sheet.cell(row=1, column=c).value for c in range(1, total_cols + 1)
-    ]
-    guidelines = [
-        sheet.cell(row=2, column=c).value for c in range(1, total_cols + 1)
-    ]
-
-    sheet.delete_rows(1, amount=total_rows)
-
-    sheet.append(headers)
-    sheet.append(guidelines)
-
-    for row_vals in final_rows_data:
-        sheet.append(row_vals)
-
-    # --- BƯỚC 4: TÔ MÀU ĐỎ CHO CÁC DÒNG ON HOLD ĐƯỢC TẠO TỪ FILE NGOẠI BÙ ---
-    for r_idx in red_row_indexes:
-        for c_idx in range(1, total_cols + 1):
-            sheet.cell(row=r_idx, column=c_idx).fill = red_fill
-
-    deleted_count = (total_rows - 2) - len(final_rows_data)
     print(
         f"⚡ Sheet '{CLIENT_STATUS_SHEET_NAME}': Hoàn tất lọc trùng & dọn dẹp.\n"
-        f"   - Tổng số Client On Hold (đã tô đỏ): {matched_on_hold_count}\n"
-        f"   - Tổng số Client thường (lấy row cuối): {len(normal_clients_map)}\n"
-        f"   - Tổng số dòng đã bị loại bỏ: {deleted_count}"
+        f"   - Tổng số Client On Hold: {matched_on_hold_count}\n"
+        f"   - Tổng số Client khác giữ lại: {normal_retained_count}\n"
+        f"   - Tổng số dòng Active bị xóa: {active_deleted_count}\n"
+        f"   - Tổng số dòng đã bị loại bỏ (gồm trùng & Active): {deleted_count}"
     )
 
     return workbook
-
-
-def me_or_none(val) -> bool:
-    """Helper kiểm tra giá trị ô có rỗng hay không."""
-    return val is None or str(val).strip() == ""
