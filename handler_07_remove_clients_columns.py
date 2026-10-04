@@ -18,6 +18,8 @@ TARGET_COLUMNS_TO_REMOVE = [
     "Send Invoices",
     "Timeframe",
     "Contact Custom Stmt Delivery",
+    "uid_x",
+    "uid_y",
 ]
 
 
