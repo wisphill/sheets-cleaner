@@ -68,7 +68,7 @@ def get_on_hold_client_ids(
 
 
 # ==============================================================================
-# BƯỚC 2, 3 & 4: Xử lý gom nhóm, Cập nhật On Hold, Lấy dòng Status cuối cùng & Xóa dòng Active
+# BƯỚC 2, 3 & 4: Xử lý gom nhóm, Cập nhật On Hold & Giữ lại Status Discharged
 # ==============================================================================
 def clean_client_status_sheet(
     workbook: openpyxl.Workbook,
@@ -76,12 +76,12 @@ def clean_client_status_sheet(
 ) -> openpyxl.Workbook:
     """Hàm điều phối dọn dẹp ClientStatus:
 
-    1. Lọc nhóm On Hold từ file bên ngoài: Update Status="On Hold", EffectiveDate="TODAY",
-       xóa StatusReason, Note. Giữ 1 dòng duy nhất.
-    2. Các Client còn lại: Lấy dòng cuối cùng (Status mới nhất) cho mỗi ClientId*.
-    3. Loại bỏ hoàn toàn các dòng có Status = "Active" sau khi gom nhóm.
-    4. Tối ưu hiệu năng bằng In-Place Shift.
-    5. Bảo toàn 100% Format của Row 1, Row 2 và giữ nguyên Format gốc của từng dòng.
+    1. Gom nhóm theo ClientId* (lấy dòng dưới cùng / mới nhất cho mỗi ClientId*).
+    2. Chỉ giữ lại:
+       - Các Client thuộc danh sách On Hold (Cập nhật Status="On Hold", EffectiveDate="TODAY", xóa StatusReason, Note).
+       - Các Client có Status = "Discharged" sau khi đã gom nhóm.
+    3. Loại bỏ tất cả các Client/Dòng khác không thỏa mãn 2 điều kiện trên.
+    4. Tối ưu hiệu năng bằng In-Place Shift và bảo toàn 100% Format gốc.
     """
     if CLIENT_STATUS_SHEET_NAME not in workbook.sheetnames:
         print(
@@ -123,7 +123,8 @@ def clean_client_status_sheet(
     if total_rows < 3:
         return workbook
 
-    # --- BƯỚC 1: ĐỌC VÀ LƯU VỊ TRÍ DÒNG (ROW INDEX) CẦN GIỮ LẠI ---
+    # --- BƯỚC 1: GOM NHÓM THEO CLIENT ID (LẤY DÒNG CUỐI CÙNG/MỚI NHẤT) ---
+    # Phân loại riêng dòng thuộc On Hold và dòng không thuộc On Hold
     normal_clients_target_row: Dict[str, int] = {}
     on_hold_clients_target_row: Dict[str, int] = {}
 
@@ -143,19 +144,20 @@ def clean_client_status_sheet(
                 break
 
         if matched_ac:
-            if matched_ac not in on_hold_clients_target_row:
-                on_hold_clients_target_row[matched_ac] = r
+            # Lưu dòng cuối cùng tìm thấy cho client On Hold này
+            on_hold_clients_target_row[matched_ac] = r
         else:
+            # Lưu dòng cuối cùng tìm thấy cho client thông thường
             normal_clients_target_row[client_id_str] = r
 
-    # Tập hợp các dòng cần giữ lại ban đầu (trước khi lọc Active)
     target_rows_set = set(on_hold_clients_target_row.values()) | set(normal_clients_target_row.values())
     on_hold_rows_set = set(on_hold_clients_target_row.values())
 
-    # --- BƯỚC 2: TỐI ƯU VỚI THUẬT TOÁN IN-PLACE SHIFT VÀ LỌC BỎ DÒNG ACTIVE ---
+    # --- BƯỚC 2: TỐI ƯU VỚI IN-PLACE SHIFT (CHỈ GIỮ ON HOLD VÀ DISCHARGED) ---
     write_row = 3
     matched_on_hold_count = 0
-    active_deleted_count = 0
+    discharged_retained_count = 0
+    deleted_other_count = 0
 
     for read_row in range(3, total_rows + 1):
         if read_row not in target_rows_set:
@@ -165,17 +167,20 @@ def clean_client_status_sheet(
 
         # Đọc giá trị Status hiện tại của dòng được chọn
         current_status_val = sheet.cell(row=read_row, column=status_col).value
-        status_str = str(current_status_val).strip() if not is_empty_or_none(current_status_val) else ""
+        status_str = str(current_status_val).strip().lower() if not is_empty_or_none(current_status_val) else ""
 
-        # Kiểm tra nếu KHÔNG PHẢI On Hold và có Status là "Active" thì BỎ QUA dòng này
-        if not is_on_hold and status_str.lower() == "active":
-            active_deleted_count += 1
-            continue
-
-        if is_on_hold:
+        # NẾU KHÔNG PHẢI ON HOLD: Chỉ giữ lại khi Status = "discharged"
+        if not is_on_hold:
+            if status_str == "discharged":
+                discharged_retained_count += 1
+            else:
+                # Bỏ qua các dòng không nằm trong danh sách On Hold và không phải Discharged
+                deleted_other_count += 1
+                continue
+        else:
             matched_on_hold_count += 1
 
-        # Nếu vị trí ghi (write_row) khác vị trí đọc (read_row), chuyển dữ liệu & format gốc
+        # Nếu vị trí ghi (write_row) khác vị trí đọc (read_row), di chuyển dữ liệu & format
         if write_row != read_row:
             for c in range(1, total_cols + 1):
                 src_cell = sheet.cell(row=read_row, column=c)
@@ -189,7 +194,7 @@ def clean_client_status_sheet(
                     dst_cell.fill = copy.copy(src_cell.fill)
                     dst_cell.alignment = copy.copy(src_cell.alignment)
 
-        # Cập nhật dữ liệu cho dòng On Hold (giữ nguyên format nền gốc)
+        # Cập nhật dữ liệu cho các dòng thuộc On Hold
         if is_on_hold:
             sheet.cell(row=write_row, column=status_col).value = "On Hold"
             if effective_date_col:
@@ -201,13 +206,13 @@ def clean_client_status_sheet(
 
         write_row += 1
 
-    # --- BƯỚC 3: XÓA DÒNG DƯ Ở CUỐI SHEET TRONG 1 LẦN GỌI ---
+    # --- BƯỚC 3: XÓA DÒNG DƯ Ở CUỐI SHEET ---
     new_max_row = write_row - 1
     if total_rows > new_max_row:
         rows_to_delete = total_rows - new_max_row
         sheet.delete_rows(new_max_row + 1, amount=rows_to_delete)
 
-    # Cảnh báo các AC Number không khớp
+    # Cảnh báo các AC Number không tìm thấy trong sheet
     unmatched_on_hold = on_hold_ac_numbers - set(on_hold_clients_target_row.keys())
     if unmatched_on_hold:
         print(
@@ -216,14 +221,12 @@ def clean_client_status_sheet(
         )
 
     deleted_count = (total_rows - 2) - (new_max_row - 2)
-    normal_retained_count = (new_max_row - 2) - matched_on_hold_count
 
     print(
         f"⚡ Sheet '{CLIENT_STATUS_SHEET_NAME}': Hoàn tất lọc trùng & dọn dẹp.\n"
-        f"   - Tổng số Client On Hold: {matched_on_hold_count}\n"
-        f"   - Tổng số Client khác giữ lại: {normal_retained_count}\n"
-        f"   - Tổng số dòng Active bị xóa: {active_deleted_count}\n"
-        f"   - Tổng số dòng đã bị loại bỏ (gồm trùng & Active): {deleted_count}"
+        f"   - Tổng số Client On Hold giữ lại: {matched_on_hold_count}\n"
+        f"   - Tổng số Client Discharged giữ lại: {discharged_retained_count}\n"
+        f"   - Tổng số dòng đã bị loại bỏ: {deleted_count}"
     )
 
     return workbook
