@@ -22,9 +22,11 @@ def _rebuild_sheet_content(
     current_max_row = worksheet.max_row
 
     # 1. Ghi đè dữ liệu vào các row hiện có (giữ nguyên cell styles/formatting)
+    # Gán thẳng .value vì Worksheet.cell(value=None) sẽ KHÔNG ghi đè,
+    # khiến ô rỗng giữ lại giá trị cũ của dòng trước khi dồn.
     for row_idx, row_values in enumerate(rows_data, start=1):
         for col_idx, val in enumerate(row_values, start=1):
-            worksheet.cell(row=row_idx, column=col_idx, value=val)
+            worksheet.cell(row=row_idx, column=col_idx).value = val
 
     # 2. Nếu số dòng sau khi lọc ít hơn số dòng ban đầu, xóa các dòng dư ở cuối
     if current_max_row > total_new_rows:
