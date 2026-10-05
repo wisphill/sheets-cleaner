@@ -5,6 +5,7 @@ import openpyxl
 EXACT_MAIN_CLIENT_ID_HEADER = "Id*"
 EXACT_CLIENT_ID_HEADER = "ClientId*"
 EXACT_CLIENT_ID_HEADER_2 = "ClientId"
+EXACT_CLIENT_ID_HEADER_3 = "Client ID*"
 EXACT_STATUS_HEADER = "Status*"
 
 # Target value to trigger deletion
@@ -103,7 +104,7 @@ def remove_discharged_clients(
         cell_val = status_sheet.cell(row=1, column=col).value
         if cell_val is not None:
             val_str = str(cell_val).strip()
-            if val_str in (EXACT_CLIENT_ID_HEADER, EXACT_CLIENT_ID_HEADER_2):
+            if val_str in (EXACT_CLIENT_ID_HEADER, EXACT_CLIENT_ID_HEADER_2, EXACT_CLIENT_ID_HEADER_3):
                 status_client_id_col_idx = col
             elif val_str == EXACT_STATUS_HEADER:
                 status_col_idx = col
@@ -188,7 +189,7 @@ def remove_discharged_clients(
             cell_val = sheet.cell(row=1, column=col).value
             if cell_val is not None:
                 val_str = str(cell_val).strip()
-                if val_str in (EXACT_CLIENT_ID_HEADER, EXACT_CLIENT_ID_HEADER_2):
+                if val_str in (EXACT_CLIENT_ID_HEADER, EXACT_CLIENT_ID_HEADER_2, EXACT_CLIENT_ID_HEADER_3):
                     client_id_col_idx = col
                     break
 
