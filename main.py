@@ -89,6 +89,10 @@ from handler_patching_13_delete_discharged_clients import (
     remove_discharged_clients
 )
 
+from handler_patching_14_update_services_status_reason import (
+    handler_services_table_update_status_reason
+)
+
 from patching_contact_dnu import (
     remove_dnu_contacts_and_client_contacts
 )
@@ -155,6 +159,7 @@ if __name__ == "__main__":
     wb = remove_discharged_clients(wb)
 
     wb = clean_services_sheet(wb)
+    wb = handler_services_table_update_status_reason(wb)
     wb = clean_sah_funding_episodes(wb)
     wb = clean_sah_funding_episode_contracts(wb)
     wb = remove_employees_with_supplier_code(wb)
