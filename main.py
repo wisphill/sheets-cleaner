@@ -77,6 +77,10 @@ from handler_patching_09_14b_remove_employees_with_dnu_in_name import (
     remove_dnu_employees
 )
 
+from handler_patching_12_clear_acquired_date_for_skills import (
+    handler_employees_table_empty_acquired_date
+)
+
 from handler_patching_13_delete_discharged_clients import (
     remove_discharged_clients
 )
@@ -139,6 +143,7 @@ if __name__ == "__main__":
     wb = remove_columns_from_employees_worksheet(wb)
     wb = remove_columns_from_employee_contacts_worksheet(wb)
     wb = clear_acquired_date_for_police_check(wb)
+    wb = handler_employees_table_empty_acquired_date(wb)
 
     #  clean the client status worksheet before removing discharged clients
     wb = clean_client_status_sheet(wb)
