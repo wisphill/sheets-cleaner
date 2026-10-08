@@ -69,6 +69,14 @@ from handler_16_clean_sah_funding_episode_contracts import (
     clean_sah_funding_episode_contracts
 )
 
+from handler_17_set_default_employee_passwords import (
+    set_default_employee_passwords
+)
+
+from handler_18_add_caregiver_roles import (
+    add_caregiver_role_to_all_employees
+)
+
 from handler_patching_09_14b_remove_employees_with_terminated_status import (
     remove_terminated_employees
 )
@@ -165,6 +173,10 @@ if __name__ == "__main__":
     wb = remove_employees_with_supplier_code(wb)
     wb = remove_terminated_employees(wb)
     wb = remove_dnu_employees(wb)
+
+    # run after all employee removals so only remaining employees are affected
+    wb = set_default_employee_passwords(wb)
+    wb = add_caregiver_role_to_all_employees(wb)
 
     wb = remove_dnu_contacts_and_client_contacts(wb)
     
