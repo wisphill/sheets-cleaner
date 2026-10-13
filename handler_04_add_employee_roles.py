@@ -1,6 +1,8 @@
+import math
 from typing import Dict, List, Optional
 import openpyxl
 from openpyxl.styles import Alignment, Font
+from openpyxl.utils import get_column_letter
 
 EXACT_EMP_ID_HEADER = "EmployeeId*"
 EXACT_ROLE_HEADER = "Role*"
@@ -30,6 +32,21 @@ GUIDELINE_TENANT = (
     'Tenant: Must match url prefix. Example, for demo3.alayacare.com, cell'
     ' value should be "demo3"'
 )
+
+# Độ rộng cột (EmployeeId*, Role*, BranchName*, Tenant*) và chiều cao dòng (pt)
+# cho Hàng 2 với font Calibri 10
+GUIDELINE_COLUMN_WIDTHS = [50, 30, 30, 30]
+GUIDELINE_LINE_HEIGHT = 14
+GUIDELINE_ROW_PADDING = 6
+
+
+def estimate_wrapped_lines(text: str, column_width: float) -> int:
+    """Ước lượng số dòng hiển thị của text khi bật wrap trong cột có độ rộng cho trước."""
+    chars_per_line = max(int(column_width), 1)
+    return sum(
+        max(math.ceil(len(paragraph) / chars_per_line), 1)
+        for paragraph in str(text).split("\n")
+    )
 
 # Danh sách Admin mặc định sử dụng EmailAddress để lookup
 DEFAULT_TARGET_USERS = [
@@ -125,6 +142,17 @@ def create_employee_roles_with_specific_users(
         cell = sheet.cell(row=2, column=col_idx)
         cell.font = italic_gray_font
         cell.alignment = wrap_alignment
+
+    # openpyxl không tự co giãn ô -> set độ rộng cột & chiều cao Hàng 2 để guideline hiển thị đủ
+    max_lines = 1
+    for col_idx, guideline in enumerate(guidelines, start=1):
+        width = GUIDELINE_COLUMN_WIDTHS[col_idx - 1]
+        sheet.column_dimensions[get_column_letter(col_idx)].width = width
+        max_lines = max(max_lines, estimate_wrapped_lines(guideline, width))
+
+    sheet.row_dimensions[2].height = (
+        max_lines * GUIDELINE_LINE_HEIGHT + GUIDELINE_ROW_PADDING
+    )
 
     # 5. Lookup theo EmailAddress và ghi dòng vào sheet (từ Hàng 3)
     added_count = 0
