@@ -51,7 +51,7 @@ def estimate_wrapped_lines(text: str, column_width: float) -> int:
 # Danh sách Admin mặc định sử dụng EmailAddress để lookup
 DEFAULT_TARGET_USERS = [
     {
-        "email": "matt.oliver@hiscsydnorth.com.au",  # Matthew
+        "email": "matt.oliver@dovida-snh.com.au",  # Matthew
     },
     {
         "email": "jo.hegney@dovida-snh.com.au",  # Jo Heyney

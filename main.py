@@ -144,7 +144,7 @@ if __name__ == "__main__":
     wb = append_test_user_to_employees(wb, last_name="Nguyen", first_name="An", email="an@mayflyventures.com")
     wb = append_test_user_to_employees(wb, last_name="Le", first_name="David", email="david@mayflyventures.com")
     users_to_process = [
-        {"email": "matt.oliver@hiscsydnorth.com.au"},
+        {"email": "matt.oliver@dovida-snh.com.au"},
         {"email": "jo.hegney@dovida-snh.com.au"},
     ]
     wb = process_employee_passwords_or_append(wb, users_data=users_to_process)
