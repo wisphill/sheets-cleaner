@@ -16,7 +16,7 @@ EXACT_REASON_HEADER = "Reason"
 EXACT_STATUS_REASON_HEADER = "StatusReason"
 EXACT_NOTE_HEADER = "Note"
 
-ON_HOLD_FILE_PATH = "./data/Clients on hold as of 06.10.2026.xlsx"
+ON_HOLD_FILE_PATH = "./data/Clients on hold as of 13.10.2026.xlsx"
 
 # Dấu phân cách trong cột 'Reason': "xxx1 - xxx2 - xxx3" (xxx3 là tùy chọn)
 REASON_SEPARATOR = " - "

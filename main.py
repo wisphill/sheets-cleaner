@@ -135,7 +135,7 @@ def load_excel_sheet_duckdb(file_path: str, sheet_name: str):
 # Main process
 # ==========================================
 if __name__ == "__main__":
-    input_file = "dovida_staging_2026-09-30_003044_Import_Template_v0.0.53.xlsx"
+    input_file = "dovida_staging_2026-10-12_234358_Import_Template_v0.0.54.xlsx"
     output_file = "Raykay_transaction.xlsx"
     
     wb = load_workbook(input_file=input_file)
